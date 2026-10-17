@@ -1,0 +1,197 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f8;
+  --border: #dde2ee;
+  --text: #0f1530;
+  --muted: #56607a;
+  --accent: #f2c811;
+  --accent-hover: #dfb700;
+  --accent-ink: #11162b;
+  --navy: #11162b;
+  --ok: #0c7a43;
+  --ok-bg: #e3f6ec;
+  --ok-line: #8fd3b0;
+  --bad: #b42318;
+  --bad-bg: #fdecea;
+  --bad-line: #f0a8a1;
+  --info: #1d5fd1;
+  --info-bg: #e8f0fd;
+  --warn: #7a5600;
+  --warn-bg: #fff4cc;
+  --code-bg: #0f1530;
+  --code-text: #e8ecf8;
+  --shadow: 0 1px 2px rgb(15 21 48 / 0.06), 0 8px 24px -8px rgb(15 21 48 / 0.12);
+  --d0: #1d5fd1;
+  --d0-bg: #e8f0fd;
+  --d1: #6b46c1;
+  --d1-bg: #f0eafb;
+  --d2: #0b7c80;
+  --d2-bg: #e0f5f5;
+  --d3: #b45309;
+  --d3-bg: #fdf0e0;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0e1d;
+  --surface: #131930;
+  --surface-2: #1a2240;
+  --border: #29325a;
+  --text: #eef1fb;
+  --muted: #9ba6c6;
+  --accent: #f2c811;
+  --accent-hover: #ffd62e;
+  --accent-ink: #11162b;
+  --ok: #52d28f;
+  --ok-bg: #11301f;
+  --ok-line: #1f6b42;
+  --bad: #ff8d83;
+  --bad-bg: #3a1618;
+  --bad-line: #7c2b2e;
+  --info: #84adff;
+  --info-bg: #14233f;
+  --warn: #f2c811;
+  --warn-bg: #2b2510;
+  --code-bg: #070a16;
+  --code-text: #e8ecf8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  --d0: #84adff;
+  --d0-bg: #14233f;
+  --d1: #b9a1f5;
+  --d1-bg: #241a42;
+  --d2: #5cd3d6;
+  --d2-bg: #0f2c2e;
+  --d3: #ffb766;
+  --d3-bg: #3a2410;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-navy: var(--navy);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-line: var(--ok-line);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-bad-line: var(--bad-line);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --shadow-soft: var(--shadow);
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+*:focus-visible {
+  outline: 3px solid var(--info);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition duration-150 select-none;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-soft;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-ink shadow-sm hover:bg-accent-hover active:translate-y-px;
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:bg-surface2;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-surface2 hover:text-ink;
+  }
+  .btn-danger {
+    @apply btn border border-bad-line bg-bad-bg text-bad hover:brightness-95;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface2 px-3 py-1 text-xs font-semibold text-ink;
+  }
+
+  .kbd {
+    @apply inline-flex min-w-6 items-center justify-center rounded-md border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-muted;
+  }
+}
+
+/* Subtle entrance for screens and feedback panels. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+dialog::backdrop {
+  background: rgb(8 12 28 / 0.6);
+  backdrop-filter: blur(2px);
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}
