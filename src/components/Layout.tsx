@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 import { useRoute } from '../lib/router'
+import { isInAppBrowser, storageAvailable } from '../lib/storage'
 import { useApp } from '../state/AppState'
 import { Icon } from './ui'
 
@@ -16,6 +17,20 @@ function NavLink({ to, icon, children, active }: { to: string; icon: 'home' | 'p
       <Icon name={icon} className="size-4" />
       <span className="hidden sm:inline">{children}</span>
     </a>
+  )
+}
+
+/** Warns when progress cannot be saved here (private mode) or may be wiped (in-app browsers). */
+function StorageBanner() {
+  const [problem] = useState<'blocked' | 'inapp' | null>(() => (!storageAvailable() ? 'blocked' : isInAppBrowser() ? 'inapp' : null))
+  if (!problem) return null
+  return (
+    <div role="alert" className={`print:hidden ${problem === 'blocked' ? 'bg-bad-bg text-bad' : 'bg-warn-bg text-warn'}`}>
+      <p className="mx-auto flex max-w-6xl items-start gap-2 px-4 py-3 text-sm font-semibold">
+        <Icon name="alert" className="mt-0.5 size-4 shrink-0" />
+        {problem === 'blocked' ? t('banner.blocked') : t('banner.inApp')}
+      </p>
+    </div>
   )
 }
 
@@ -74,6 +89,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
+      <StorageBanner />
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:py-8">
         {children}
       </main>

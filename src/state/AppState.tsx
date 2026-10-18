@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { bank, questionsById } from '../data/bank'
 import { navigate } from '../lib/router'
+import { MAX_HISTORY, buildBackup, mergeBackup, type Backup } from '../lib/backup'
 import { applyAttemptToStats, scoreSession } from '../lib/scoring'
 import { createSession, pickQuestions } from '../lib/select'
-import { KEYS, clearAll, load, remove, save } from '../lib/storage'
+import { KEYS, clearAll, load, remove, requestPersistence, save } from '../lib/storage'
 import type { Attempt, Question, QuizConfig, Session, Stats } from '../types'
 
 export type Theme = 'light' | 'dark'
@@ -68,6 +69,12 @@ interface AppContextValue {
   abandon: () => void
   rememberSetup: (config: QuizConfig) => void
   resetAll: () => void
+  /** Result of the last backup export/import. Lives here so it survives the Progress page switching layout. */
+  dataMessage: { ok: boolean; text: string } | null
+  setDataMessage: (message: { ok: boolean; text: string } | null) => void
+  exportBackup: () => Backup
+  /** Merge a parsed backup into the current data; returns how many attempts were new. */
+  importBackup: (backup: Backup) => number
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -77,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Attempt[]>(() => load<Attempt[]>(KEYS.history, []))
   const [stats, setStats] = useState<Stats>(() => load<Stats>(KEYS.stats, {}))
   const [setupDefaults, setSetupDefaults] = useState<QuizConfig | null>(() => load<QuizConfig | null>(KEYS.setup, null))
+  const [dataMessage, setDataMessage] = useState<AppContextValue['dataMessage']>(null)
   const [theme, setTheme] = useState<Theme>(() => (document.documentElement.getAttribute('data-theme') as Theme) || 'light')
 
   useEffect(() => {
@@ -113,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (config, options = {}) => {
       const questions = options.questions ?? pickQuestions(bank, config, { stats, lastAttempt })
       if (questions.length === 0) return
+      void requestPersistence() // ask the browser not to evict our data (needs a user gesture on some browsers)
       dispatch({ type: 'start', session: createSession(questions, config, { label: options.label ?? null }) })
       navigate('/quiz')
     },
@@ -123,7 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!session) return null
     const attempt = scoreSession(session, questionsById, Date.now())
     setHistory((h) => {
-      const next = [attempt, ...h.filter((a) => a.id !== attempt.id)].slice(0, 100)
+      const next = [attempt, ...h.filter((a) => a.id !== attempt.id)].slice(0, MAX_HISTORY)
       save(KEYS.history, next)
       return next
     })
@@ -153,6 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHistory([])
     setStats({})
     setSetupDefaults(null)
+    setDataMessage(null)
     const t = systemTheme()
     setTheme(t)
     navigate('/')
@@ -164,6 +174,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleFlag = useCallback((id: string) => dispatch({ type: 'flag', id }), [])
   const goTo = useCallback((index: number) => dispatch({ type: 'goto', index }), [])
   const tick = useCallback((ms: number) => dispatch({ type: 'tick', ms }), [])
+
+  const exportBackup = useCallback(() => buildBackup(history, stats), [history, stats])
+
+  const importBackup = useCallback(
+    (backup: Backup) => {
+      const merged = mergeBackup({ history, stats }, backup)
+      setHistory(merged.history)
+      setStats(merged.stats)
+      save(KEYS.history, merged.history)
+      save(KEYS.stats, merged.stats)
+      return merged.addedAttempts
+    },
+    [history, stats],
+  )
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -184,8 +208,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       abandon,
       rememberSetup,
       resetAll,
+      dataMessage,
+      setDataMessage,
+      exportBackup,
+      importBackup,
     }),
-    [session, history, stats, theme, lastAttempt, setupDefaults, toggleTheme, startQuiz, answer, check, toggleFlag, goTo, tick, finish, abandon, rememberSetup, resetAll],
+    [session, history, stats, theme, lastAttempt, setupDefaults, toggleTheme, startQuiz, answer, check, toggleFlag, goTo, tick, finish, abandon, rememberSetup, resetAll, dataMessage, exportBackup, importBackup],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

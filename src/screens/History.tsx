@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { DomainBars, ScoreLine } from '../components/charts'
-import { DomainBadge, Dialog, Icon } from '../components/ui'
+import { DataSection } from '../components/DataSection'
+import { DomainBadge, Icon } from '../components/ui'
 import { bank, bankStats, questionsById } from '../data/bank'
-import { t, tn } from '../i18n'
+import { t } from '../i18n'
 import { formatDateTime, formatDuration, formatPercent } from '../lib/format'
 import { navigate } from '../lib/router'
 import { PASS_PERCENT, domainAccuracy, percentOf } from '../lib/scoring'
@@ -19,8 +20,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
 }
 
 export function History() {
-  const { history, stats, resetAll } = useApp()
-  const [confirmReset, setConfirmReset] = useState(false)
+  const { history, stats } = useApp()
 
   const kpis = useMemo(() => {
     const best = history.reduce((m, a) => Math.max(m, a.percent), 0)
@@ -53,15 +53,18 @@ export function History() {
 
   if (history.length === 0) {
     return (
-      <div className="rise card mx-auto max-w-xl p-10 text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink">
-          <Icon name="history" className="size-7" />
-        </span>
-        <h1 className="mt-4 text-xl font-extrabold">{t('history.empty.title')}</h1>
-        <p className="mt-2 text-muted">{t('history.empty.body')}</p>
-        <button type="button" className="btn-primary mt-6" onClick={() => navigate('/setup')}>
-          {t('history.empty.cta')}
-        </button>
+      <div className="rise mx-auto max-w-xl space-y-6">
+        <div className="card p-10 text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink">
+            <Icon name="history" className="size-7" />
+          </span>
+          <h1 className="mt-4 text-xl font-extrabold">{t('history.empty.title')}</h1>
+          <p className="mt-2 text-muted">{t('history.empty.body')}</p>
+          <button type="button" className="btn-primary mt-6" onClick={() => navigate('/setup')}>
+            {t('history.empty.cta')}
+          </button>
+        </div>
+        <DataSection />
       </div>
     )
   }
@@ -170,41 +173,7 @@ export function History() {
         </div>
       </section>
 
-      <section className="card flex flex-wrap items-center justify-between gap-4 border-bad-line p-5">
-        <div>
-          <h2 className="font-bold">{t('reset.title')}</h2>
-          <p className="text-sm text-muted">{tn('reset.body', history.length)}</p>
-        </div>
-        <button type="button" className="btn-danger" onClick={() => setConfirmReset(true)}>
-          <Icon name="trash" className="size-4" />
-          {t('reset.button')}
-        </button>
-      </section>
-
-      <Dialog
-        open={confirmReset}
-        onClose={() => setConfirmReset(false)}
-        title={t('reset.confirm.title')}
-        actions={
-          <>
-            <button type="button" className="btn-secondary" onClick={() => setConfirmReset(false)}>
-              {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              className="btn-danger"
-              onClick={() => {
-                setConfirmReset(false)
-                resetAll()
-              }}
-            >
-              {t('reset.confirm.yes')}
-            </button>
-          </>
-        }
-      >
-        {t('reset.confirm.body')}
-      </Dialog>
+      <DataSection />
     </div>
   )
 }

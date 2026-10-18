@@ -61,7 +61,8 @@ Needs Python 3 and `pdftotext` (poppler) on the PATH. It writes `src/data/questi
 - **Quiz setup**: domain checkboxes, a number slider/input with presets (10, 25, 50, All), a live distribution preview, shuffle questions/options, optional timer, include/exclude case studies, and three question sources: random mix, **weak areas** (weighted by your history) and **missed last time**.
 - **Proportional sampling**: the requested count is split across the selected domains with the **largest-remainder method**, so it always sums to exactly the requested number and never exceeds a domain's availability. Questions are picked at random within each domain.
 - **Results**: score, percentage, pass/fail at 70%, an *estimated* scaled score, per-domain bars, weak topics, a filterable review (All / Wrong / Correct / Flagged / Unanswered), retry-missed, JSON export and a printable view.
-- **Persistence**: an unfinished quiz survives a refresh; attempt history (last 100), per-question statistics, a progress dashboard (score trend, domain accuracy, weakest topics) and **Reset all data** with confirmation. Everything lives in `localStorage` under the `pl300.v1.*` keys.
+- **Persistence (no account)**: an unfinished quiz survives a refresh; attempt history (last 100), per-question statistics, a progress dashboard (score trend, domain accuracy, weakest topics) and **Reset all data** with confirmation. Data lives in `localStorage` (`pl300.v1.*` keys) and is **mirrored to IndexedDB**; if the browser wipes localStorage but keeps IndexedDB, it is restored on the next start. The app also asks the browser for persistent storage so it is not evicted automatically.
+- **Backup / restore**: *Progress → Your data* exports a JSON backup and imports one. Import **merges** (attempts united by id, the most recent per-question statistic wins, nothing is overwritten), so it is also how you move progress between your phone and computer. A banner warns when the browser blocks storage (private mode) or you are in an in-app browser (chat/social apps), whose storage is separate and easily wiped.
 - **UX**: Power BI inspired navy/gold identity, light and dark themes (follows the system until you toggle), responsive layout, semantic HTML, ARIA roles, focus rings, reduced-motion support.
 - **Keyboard**: `A`-`E` select, `Enter` check/next, `←`/`→` navigate, `F` flag.
 
@@ -72,6 +73,7 @@ Needs Python 3 and `pdftotext` (poppler) on the PATH. It writes `src/data/questi
 - The timer only counts while the tab is visible.
 - Switching to Exam mode turns the timer on by default; switching to Practice turns it off. You can override either.
 - Per-question statistics only count questions you actually answered.
+- Storage is per browser **and per address**: `localhost:5173`, `localhost:5174` and the published `github.io` site each start empty, as do other browsers and devices. Without a server there is no automatic sync between them; use the backup file.
 - Option order is shuffled per quiz; explanations never refer to options by letter, so shuffling is safe. The A-E letters you see are display positions.
 
 ## Data schema
@@ -114,7 +116,7 @@ All UI strings live in `src/i18n/en.ts` (plural keys use `_one` / `_other`). To 
 
 ## Tests
 
-`npm test` runs Vitest (39 tests):
+`npm test` runs Vitest (46 tests):
 
 - `distribution.test.ts`: sums exactly, per-domain availability, floor/ceil of each quota for **every** subset of domains and **every** request size on both the 300-question layout (80/80/80/60) and a 13/15/15/7 layout, plus 500 random pools, ties and edge cases.
 - `select.test.ts`: exact counts for every N from 1 to 300 without duplicates, proportionality (30 → 8/8/8/6, 300 → 80/80/80/60), single/two-domain pools, small counts (5, 7), bank order when not shuffling, the *wrong* and *weak* sources, case-study clustering and exclusion on the real bank, option shuffling.
