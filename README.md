@@ -58,7 +58,7 @@ Needs Python 3 and `pdftotext` (poppler) on the PATH. It writes `src/data/questi
 
 - **Practice mode**: *Check answer*, then correct/wrong colouring, the correct answer(s) and an explanation under **every** option, then *Next*.
 - **Exam mode**: no feedback, free navigation, flagging, an overview grid, and a confirmation dialog listing unanswered questions before *Finish*. Default pace 1 min 40 s per question as a countdown (auto-finishes at 0).
-- **Quiz setup**: domain checkboxes, a number slider/input with presets (10, 25, 50, All), a live distribution preview, shuffle questions/options, optional timer, include/exclude case studies, and three question sources: random mix, **weak areas** (weighted by your history) and **missed last time**.
+- **Quiz setup**: domain checkboxes, a number slider/input with presets (10, 25, 50, All), a live distribution preview, shuffle questions/options, optional timer, include/exclude case studies, and three question sources: random mix, **weak areas** (questions you missed come first, worst first, then ones you have not answered) and **missed last time**.
 - **Proportional sampling**: the requested count is split across the selected domains with the **largest-remainder method**, so it always sums to exactly the requested number and never exceeds a domain's availability. Questions are picked at random within each domain.
 - **Results**: score, percentage, pass/fail at 70%, an *estimated* scaled score, per-domain bars, weak topics, a filterable review (All / Wrong / Correct / Flagged / Unanswered), retry-missed, JSON export and a printable view.
 - **Persistence (no account)**: an unfinished quiz survives a refresh; attempt history (last 100), per-question statistics, a progress dashboard (score trend, domain accuracy, weakest topics) and **Reset all data** with confirmation. Data lives in `localStorage` (`pl300.v1.*` keys) and is **mirrored to IndexedDB**; if the browser wipes localStorage but keeps IndexedDB, it is restored on the next start. The app also asks the browser for persistent storage so it is not evicted automatically.
@@ -116,10 +116,10 @@ All UI strings live in `src/i18n/en.ts` (plural keys use `_one` / `_other`). To 
 
 ## Tests
 
-`npm test` runs Vitest (46 tests):
+`npm test` runs Vitest (50 tests):
 
 - `distribution.test.ts`: sums exactly, per-domain availability, floor/ceil of each quota for **every** subset of domains and **every** request size on both the 300-question layout (80/80/80/60) and a 13/15/15/7 layout, plus 500 random pools, ties and edge cases.
-- `select.test.ts`: exact counts for every N from 1 to 300 without duplicates, proportionality (30 → 8/8/8/6, 300 → 80/80/80/60), single/two-domain pools, small counts (5, 7), bank order when not shuffling, the *wrong* and *weak* sources, case-study clustering and exclusion on the real bank, option shuffling.
+- `select.test.ts`: exact counts for every N from 1 to 300 without duplicates, proportionality (30 → 8/8/8/6, 300 → 80/80/80/60), single/two-domain pools, small counts (5, 7), bank order when not shuffling, the *wrong* source and the *weak* source (missed questions first, worst miss rate first, then unseen, then mastered), case-study clustering and exclusion on the real bank, option shuffling.
 - `scoring.test.ts`: exact-set grading for multi-select, pass mark at exactly 70%, scaled estimate, domain totals, weak topics, statistics.
 - `bank.test.ts`: integrity of the extracted bank (counts, keys, option explanations, cases, code snippets, no leaked page footers).
 

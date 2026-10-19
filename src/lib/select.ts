@@ -29,20 +29,34 @@ export function poolByDomain(pool: readonly Question[], domains: readonly string
   return counts
 }
 
-/** Weight for the "weak areas" source: favours questions missed or never seen. */
-export function weaknessWeight(stat: Stats[string] | undefined): number {
-  if (!stat || stat.attempts === 0) return 2 // unseen questions deserve some exposure
-  const missRate = 1 - stat.correct / stat.attempts
-  return 1 + 12 * missRate + (stat.lastCorrect ? 0 : 6)
+/** 0 = missed at least once, 1 = never answered, 2 = always answered correctly. */
+export function weakTier(stat: Stats[string] | undefined): 0 | 1 | 2 {
+  if (!stat || stat.attempts === 0) return 1
+  return stat.correct < stat.attempts ? 0 : 2
 }
 
-/** Weighted sampling without replacement (Efraimidis-Spirakis). */
-export function weightedSample<T>(items: readonly T[], weight: (item: T) => number, count: number, rng: Rng): T[] {
-  return items
-    .map((item) => ({ item, key: Math.pow(Math.max(rng(), Number.EPSILON), 1 / Math.max(weight(item), 1e-6)) }))
-    .sort((a, b) => b.key - a.key)
-    .slice(0, count)
-    .map((entry) => entry.item)
+/**
+ * Order for the "weak areas" source:
+ *  1. questions you have missed, worst miss rate first (ties: last answer wrong first, then random),
+ *  2. questions you have not answered yet (random),
+ *  3. questions you always answered correctly (random).
+ * A quiz of N takes the first N, so previously missed questions always come first.
+ */
+export function weakPriority(pool: readonly Question[], stats: Stats, rng: Rng = Math.random): Question[] {
+  const missRate = (q: Question) => 1 - stats[q.id].correct / stats[q.id].attempts
+  // shuffle first: Array.sort is stable, so equal questions keep this random order
+  return shuffle(pool, rng).sort((a, b) => {
+    const ta = weakTier(stats[a.id])
+    const tb = weakTier(stats[b.id])
+    if (ta !== tb) return ta - tb
+    if (ta !== 0) return 0
+    return missRate(b) - missRate(a) || Number(stats[a.id].lastCorrect) - Number(stats[b.id].lastCorrect)
+  })
+}
+
+/** How many questions in the pool the user has missed at least once. */
+export function countMissed(pool: readonly Question[], stats: Stats): number {
+  return pool.filter((q) => weakTier(stats[q.id]) === 0).length
 }
 
 /** Keep questions of one case study next to each other, ordered by first appearance. */
@@ -63,8 +77,8 @@ export function clusterCases(questions: readonly Question[]): Question[] {
 /**
  * Choose the questions for a quiz. For the standard and "wrong" sources the
  * requested count is split across domains with the largest-remainder method
- * and questions are picked at random inside each domain. For "weak" the picks
- * are weighted by past performance instead.
+ * and questions are picked at random inside each domain. For "weak" the
+ * questions you missed come first (see weakPriority).
  */
 export function pickQuestions(
   bank: Bank,
@@ -77,7 +91,7 @@ export function pickQuestions(
   let picked: Question[]
 
   if (config.source === 'weak') {
-    picked = weightedSample(pool, (q) => weaknessWeight(ctx.stats[q.id]), count, rng)
+    picked = weakPriority(pool, ctx.stats, rng).slice(0, count)
   } else {
     const counts = distribute(count, poolByDomain(pool, config.domains))
     picked = []

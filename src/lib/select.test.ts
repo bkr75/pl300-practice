@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bank } from '../data/bank'
 import type { Bank, Question, QuizConfig } from '../types'
 import { seededRng } from './rng'
-import { candidatePool, clusterCases, createSession, pickQuestions, weightedSample, weaknessWeight } from './select'
+import { candidatePool, clusterCases, countMissed, createSession, pickQuestions, weakPriority, weakTier } from './select'
 
 const base: QuizConfig = {
   mode: 'practice',
@@ -115,32 +115,59 @@ describe('sources', () => {
     expect(pickQuestions(bank, cfg, { stats: {}, lastAttempt }, seededRng(1))).toHaveLength(2)
   })
 
-  it('"weak" prefers questions with a poor record', () => {
-    const missed = bank.questions.slice(0, 30).map((q) => q.id)
-    const stats = Object.fromEntries(
-      bank.questions.map((q) => [
-        q.id,
-        missed.includes(q.id)
-          ? { attempts: 4, correct: 0, lastCorrect: false, lastAt: 1 }
-          : { attempts: 4, correct: 4, lastCorrect: true, lastAt: 1 },
-      ]),
-    )
-    let hits = 0
-    for (let seed = 1; seed <= 40; seed++) {
-      const picked = pickQuestions(bank, { ...base, source: 'weak', count: 10 }, { stats, lastAttempt: null }, seededRng(seed))
-      hits += picked.filter((q) => missed.includes(q.id)).length
-    }
-    expect(hits / (40 * 10)).toBeGreaterThan(0.5) // far above the 10% base rate (30 of 300)
-    expect(weaknessWeight({ attempts: 2, correct: 0, lastCorrect: false, lastAt: 0 })).toBeGreaterThan(
-      weaknessWeight({ attempts: 2, correct: 2, lastCorrect: true, lastAt: 0 }),
-    )
-  })
+  describe('"weak" source', () => {
+    const stat = (attempts: number, correct: number, lastCorrect = correct > 0) => ({ attempts, correct, lastCorrect, lastAt: 1 })
+    const idsOf = (qs: Question[]) => qs.map((q) => q.id)
+    // first 30 questions: missed (worst first = lower index); next 40: always correct; the rest: never answered
+    const missedIds = bank.questions.slice(0, 30).map((q) => q.id)
+    const masteredIds = bank.questions.slice(30, 70).map((q) => q.id)
+    const stats = Object.fromEntries([
+      ...missedIds.map((id, i) => [id, i < 10 ? stat(4, 0) : stat(4, 2, false)]), // 10 at 100% miss rate, 20 at 50%
+      ...masteredIds.map((id) => [id, stat(3, 3)]),
+    ])
+    const weak = (count: number, seed: number) =>
+      pickQuestions(bank, { ...base, source: 'weak', count, shuffleQuestions: false }, { stats, lastAttempt: null }, seededRng(seed))
 
-  it('weightedSample never repeats and respects the count', () => {
-    const items = [1, 2, 3, 4, 5, 6]
-    const out = weightedSample(items, (n) => n, 4, seededRng(5))
-    expect(out).toHaveLength(4)
-    expect(new Set(out).size).toBe(4)
+    it('returns only missed questions while there are enough of them', () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        expect(idsOf(weak(10, seed)).every((id) => missedIds.includes(id))).toBe(true)
+        expect(idsOf(weak(30, seed)).sort()).toEqual([...missedIds].sort())
+      }
+    })
+
+    it('takes the worst miss rate first', () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        // 10 questions with a 100% miss rate exist, so a quiz of 10 must be exactly those
+        expect(idsOf(weak(10, seed)).sort()).toEqual(missedIds.slice(0, 10).sort())
+      }
+    })
+
+    it('fills the rest with never-answered questions before always-correct ones', () => {
+      const picked = idsOf(weak(100, 3))
+      expect(picked).toHaveLength(100)
+      expect(missedIds.every((id) => picked.includes(id))).toBe(true)
+      expect(masteredIds.some((id) => picked.includes(id))).toBe(false) // 230 unseen questions come first
+      expect(idsOf(weak(300, 3)).filter((id) => masteredIds.includes(id))).toHaveLength(40) // ...but they are used last
+    })
+
+    it('puts questions whose last answer was wrong ahead of equal miss rates', () => {
+      const tie = { a: stat(2, 1, false), b: stat(2, 1, true) }
+      const pool = [bank.questions[0], bank.questions[1]]
+      const order = weakPriority(pool, { [pool[0].id]: tie.b, [pool[1].id]: tie.a }, seededRng(1))
+      expect(order[0].id).toBe(pool[1].id)
+    })
+
+    it('shuffles within a group so repeats are not always the same questions', () => {
+      expect(idsOf(weak(5, 1))).not.toEqual(idsOf(weak(5, 2)))
+    })
+
+    it('classifies tiers and counts missed questions', () => {
+      expect(weakTier(undefined)).toBe(1)
+      expect(weakTier(stat(0, 0))).toBe(1)
+      expect(weakTier(stat(3, 2))).toBe(0)
+      expect(weakTier(stat(3, 3))).toBe(2)
+      expect(countMissed(bank.questions, stats)).toBe(30)
+    })
   })
 })
 

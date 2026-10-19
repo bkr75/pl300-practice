@@ -7,7 +7,7 @@ import { defaultConfig } from '../lib/config'
 import { distribute } from '../lib/distribution'
 import { formatDuration } from '../lib/format'
 import { useRoute } from '../lib/router'
-import { candidatePool, poolByDomain } from '../lib/select'
+import { candidatePool, countMissed, poolByDomain } from '../lib/select'
 import { useApp } from '../state/AppState'
 import type { Mode, QuizConfig, Source } from '../types'
 
@@ -81,6 +81,7 @@ export function Setup() {
   const missedInLast = lastAttempt ? lastAttempt.results.filter((r) => !r.correct).length : 0
   const pool = useMemo(() => candidatePool(bank, cfg, { stats, lastAttempt }), [cfg, stats, lastAttempt])
   const poolSize = pool.length
+  const missedInPool = useMemo(() => countMissed(pool, stats), [pool, stats])
   const count = poolSize === 0 ? 0 : Math.min(Math.max(cfg.count, 1), poolSize)
   const counts = useMemo(
     () => distribute(count, poolByDomain(pool, cfg.domains)),
@@ -252,7 +253,11 @@ export function Setup() {
             <div aria-live="polite">
               <p className="mb-2 text-sm font-semibold">{cfg.source === 'weak' ? t('setup.preview.weak') : t('setup.preview')}</p>
               {cfg.source === 'weak' ? (
-                <p className="text-sm text-muted">{tn('setup.preview.weak.body', count)}</p>
+                <p className="text-sm text-muted">
+                  {missedInPool === 0
+                    ? t('setup.preview.weak.none')
+                    : tn('setup.preview.weak.body', count, { missed: Math.min(missedInPool, count) })}
+                </p>
               ) : (
                 <DistributionPreview counts={counts} domains={cfg.domains} />
               )}
